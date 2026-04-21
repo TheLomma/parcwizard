@@ -94,6 +94,7 @@ export default function DLPMobil() {
   const [notifThreshold, setNotifThreshold] = useState(20);
   const [notifications, setNotifications] = useState([]);
   const [liveData, setLiveData] = useState(attractions.map(a => ({...a})));
+  const [waitHistory, setWaitHistory] = useState(() => { const init = {}; attractions.forEach(a => { init[a.id] = [a.wait]; }); return init; });
   const prevData = useState(attractions.map(a => ({...a})))[0];
   const prevRef = { current: attractions.map(a => ({...a})) };
   const [favorites, setFavorites] = useState([]);
@@ -239,6 +240,16 @@ export default function DLPMobil() {
             newNotifs.push({ id: Date.now() + a.id, type: "low", text: `⏱️ ${a.name}: Wartezeit jetzt nur noch ${a.wait} min!` });
           }
         });
+        // Verlauf aufzeichnen
+        setWaitHistory(prev => {
+          const next = { ...prev };
+          updated.forEach(a => {
+            const hist = prev[a.id] || [];
+            next[a.id] = [...hist, a.wait].slice(-12);
+          });
+          return next;
+        });
+
         prevRef.current = updated;
         if (newNotifs.length > 0) {
           setNotifications(prev => [...newNotifs, ...prev].slice(0, 10));
@@ -304,7 +315,7 @@ export default function DLPMobil() {
             </div>
             <div>
               <h1 className="text-white font-black text-xl tracking-tight leading-none">ParcWizard</h1>
-              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 2.1</p>
+              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 2.2</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -609,7 +620,34 @@ export default function DLPMobil() {
                             </button>
                             <div className="flex-1 min-w-0">
                               <p className={`font-bold truncate ${compactMode ? "text-sm" : "text-base"} ${dm ? "text-gray-100" : "text-gray-900"}`}>{a.name}</p>
-                              {!compactMode && <p className={`text-xs mt-0.5 ${dm ? "text-gray-400" : "text-gray-500"}`}>{a.land}</p>}
+                              {!compactMode && (
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  <p className={`text-xs ${dm ? "text-gray-400" : "text-gray-500"}`}>{a.land}</p>
+                                  {/* Sparkline */}
+                                  {(() => {
+                                    const hist = waitHistory[a.id] || [a.wait];
+                                    if (hist.length < 2) return null;
+                                    const max = Math.max(...hist, 1);
+                                    const w = 48, h = 16;
+                                    const pts = hist.map((v, i) => {
+                                      const x = (i / (hist.length - 1)) * w;
+                                      const y = h - (v / max) * h;
+                                      return `${x},${y}`;
+                                    }).join(" ");
+                                    const trend = hist[hist.length - 1] - hist[0];
+                                    const color = trend > 5 ? "#ef4444" : trend < -5 ? "#22c55e" : "#facc15";
+                                    const arrow = trend > 5 ? "↑" : trend < -5 ? "↓" : "→";
+                                    return (
+                                      <div className="flex items-center gap-1">
+                                        <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`}>
+                                          <polyline points={pts} fill="none" stroke={color} strokeWidth="1.5" strokeLinejoin="round" strokeLinecap="round"/>
+                                        </svg>
+                                        <span className="text-xs font-bold" style={{color}}>{arrow}</span>
+                                      </div>
+                                    );
+                                  })()}
+                                </div>
+                              )}
                             </div>
                             <button
                               onClick={() => addToPlan(a)}
