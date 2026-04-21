@@ -109,6 +109,27 @@ export default function DLPMobil() {
   const [plan, setPlan] = useState([]); // [{id, customWait}]
   const [dragOver, setDragOver] = useState(null);
   const [collapsedLands, setCollapsedLands] = useState({});
+  const [swipeState, setSwipeState] = useState({}); // {id: offsetX}
+  const swipeTouchStart = { current: {} };
+
+  const handleSwipeStart = (id, e) => {
+    swipeTouchStart.current[id] = e.touches[0].clientX;
+  };
+  const handleSwipeMove = (id, e) => {
+    const delta = e.touches[0].clientX - (swipeTouchStart.current[id] || 0);
+    if (delta < 0) {
+      setSwipeState(prev => ({ ...prev, [id]: Math.max(delta, -80) }));
+    } else if (delta > 0 && swipeState[id] < 0) {
+      setSwipeState(prev => ({ ...prev, [id]: Math.min(delta + (swipeState[id] || 0), 0) }));
+    }
+  };
+  const handleSwipeEnd = (id) => {
+    const offset = swipeState[id] || 0;
+    if (offset < -50) {
+      toggleFavorite(id);
+    }
+    setSwipeState(prev => ({ ...prev, [id]: 0 }));
+  };
 
   const toggleLand = (land) => { haptic("light"); setCollapsedLands(prev => ({ ...prev, [land]: !prev[land] })); };
 
@@ -282,7 +303,7 @@ export default function DLPMobil() {
             </div>
             <div>
               <h1 className="text-white font-black text-xl tracking-tight leading-none">ParcWizard</h1>
-              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 1.9</p>
+              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 2.0</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -552,10 +573,19 @@ export default function DLPMobil() {
                     {!isCollapsed && (
                       <div className="space-y-2 pl-1">
                         {items.map((a) => (
-                          <div
-                            key={a.id}
-                            className={`rounded-2xl p-4 flex items-center justify-between shadow ${waitColor(a.wait, a.status, dm)}`}
-                          >
+                          <div key={a.id} className="relative overflow-hidden rounded-2xl">
+                            {/* Swipe-Hintergrund */}
+                            <div className="absolute inset-0 flex items-center justify-end pr-5 rounded-2xl"
+                              style={{backgroundColor: favorites.includes(a.id) ? "#ef4444" : "#C8A44A"}}>
+                              <span className="text-2xl">{favorites.includes(a.id) ? "💔" : "⭐"}</span>
+                            </div>
+                            <div
+                              className={`relative rounded-2xl p-4 flex items-center justify-between shadow ${waitColor(a.wait, a.status, dm)}`}
+                              style={{transform: `translateX(${swipeState[a.id] || 0}px)`, transition: swipeState[a.id] === 0 ? "transform 0.3s ease" : "none"}}
+                              onTouchStart={(e) => handleSwipeStart(a.id, e)}
+                              onTouchMove={(e) => handleSwipeMove(a.id, e)}
+                              onTouchEnd={() => handleSwipeEnd(a.id)}
+                            >
                             <button
                               onClick={() => toggleFavorite(a.id)}
                               className="mr-3 text-xl flex-shrink-0 transition-transform active:scale-125"
@@ -581,6 +611,7 @@ export default function DLPMobil() {
                                   <p className="text-xs opacity-80">min</p>
                                 </>
                               )}
+                            </div>
                             </div>
                           </div>
                         ))}
