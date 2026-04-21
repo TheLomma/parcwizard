@@ -32,6 +32,31 @@ const restaurants = [
   { id: 12, name: "Restaurant des Stars", land: "Walt Disney Studios", type: "Restaurant", open: "12:00", close: "21:00", reservation: true, reserved: true, cuisine: "Amerikanisch", price: "€€€" },
 ];
 
+const shows = [
+  { id: 1, name: "Disney Stars on Parade", type: "Parade", location: "Main Street", times: ["11:30", "15:00", "18:30"], duration: 30, emoji: "🎠" },
+  { id: 2, name: "Disney Illuminations", type: "Feuerwerk", location: "Schloss", times: ["22:00"], duration: 25, emoji: "🎆" },
+  { id: 3, name: "The Lion King: Rhythms of the Pride Lands", type: "Show", location: "Frontierland", times: ["12:00", "14:00", "16:00", "18:00"], duration: 20, emoji: "🦁" },
+  { id: 4, name: "Mickey's PhilharMagic", type: "Show", location: "Fantasyland", times: ["11:00", "13:00", "15:30", "17:30"], duration: 12, emoji: "🎵" },
+  { id: 5, name: "Star Wars: A Galactic Celebration", type: "Nachtshow", location: "Discoveryland", times: ["21:00"], duration: 20, emoji: "⭐" },
+  { id: 6, name: "Frozen: A Musical Invitation", type: "Show", location: "Fantasyland", times: ["10:30", "12:30", "14:30", "16:30"], duration: 25, emoji: "❄️" },
+  { id: 7, name: "Mickey and the Magician", type: "Show", location: "Walt Disney Studios", times: ["11:30", "14:00", "16:30"], duration: 45, emoji: "🎩" },
+  { id: 8, name: "Moteurs… Action! Stunt Show", type: "Stuntshow", location: "Walt Disney Studios", times: ["11:00", "14:00", "17:00"], duration: 35, emoji: "🚗" },
+];
+
+const getNextTime = (times) => {
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  for (const t of times) {
+    const [h, m] = t.split(":").map(Number);
+    const tMin = h * 60 + m;
+    if (tMin > nowMin) {
+      const diff = tMin - nowMin;
+      return { time: t, diffMin: diff };
+    }
+  }
+  return null;
+};
+
 const isOpen = (open, close) => {
   const now = new Date();
   const [oh, om] = open.split(":").map(Number);
@@ -72,7 +97,14 @@ export default function DLPMobil() {
   const prevRef = { current: attractions.map(a => ({...a})) };
   const [favorites, setFavorites] = useState([]);
   const [activeTab, setActiveTab] = useState("alle"); // "alle" | "favoriten" | "plan" | "karte" | "restaurants"
-  const [restFilter, setRestFilter] = useState("Alle"); // "alle" | "favoriten" | "plan" | "karte" // "alle" | "favoriten" | "plan"
+  const [restFilter, setRestFilter] = useState("Alle");
+  const [showFilter, setShowFilter] = useState("Alle");
+  const [now, setNow] = useState(new Date());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(new Date()), 30000);
+    return () => clearInterval(t);
+  }, []); // "alle" | "favoriten" | "plan" | "karte" // "alle" | "favoriten" | "plan"
   const [plan, setPlan] = useState([]); // [{id, customWait}]
   const [dragOver, setDragOver] = useState(null);
   const [dragging, setDragging] = useState(null);
@@ -180,7 +212,7 @@ export default function DLPMobil() {
             </div>
             <div>
               <h1 className="text-white font-black text-xl tracking-tight leading-none">ParcWizard</h1>
-              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 1.4</p>
+              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 1.5</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -223,6 +255,7 @@ export default function DLPMobil() {
             { key: "plan", label: `🗓️ Tagesplan (${plan.length})` },
             { key: "karte", label: "🗺️ Karte" },
             { key: "restaurants", label: "🍽️ Restaurants" },
+            { key: "shows", label: "🎆 Shows" },
           ].map((t) => (
             <button
               key={t.key}
@@ -617,6 +650,103 @@ export default function DLPMobil() {
               </div>
 
               <p className="text-center text-xs pb-2" style={{color: "#93c5fd"}}>Öffnungszeiten basieren auf aktueller Uhrzeit · Beispieldaten</p>
+            </div>
+          );
+        })()}
+
+        {/* Shows & Paraden Tab */}
+        {activeTab === "shows" && (() => {
+          const showTypes = ["Alle", "Parade", "Show", "Nachtshow", "Stuntshow", "Feuerwerk"];
+          const filteredShows = shows.filter(s => showFilter === "Alle" || s.type === showFilter);
+          const nowMin = now.getHours() * 60 + now.getMinutes();
+
+          return (
+            <div className="space-y-4">
+              {/* Filter */}
+              <div className="flex flex-wrap gap-2">
+                {showTypes.map(t => (
+                  <button key={t} onClick={() => setShowFilter(t)}
+                    className="px-3 py-1.5 rounded-full text-sm font-semibold transition-all"
+                    style={showFilter === t
+                      ? { backgroundColor: "#C8A44A", color: "#001a6e", fontWeight: 700 }
+                      : { backgroundColor: dm ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.15)", color: "white" }
+                    }>{t}</button>
+                ))}
+              </div>
+
+              {/* Show-Liste */}
+              <div className="space-y-3">
+                {filteredShows.map(s => {
+                  const next = getNextTime(s.times);
+                  const isNow = s.times.some(t => {
+                    const [h, m] = t.split(":").map(Number);
+                    const tMin = h * 60 + m;
+                    return nowMin >= tMin && nowMin <= tMin + s.duration;
+                  });
+                  const countdownStr = next
+                    ? next.diffMin < 60
+                      ? `in ${next.diffMin} Min.`
+                      : `in ${Math.floor(next.diffMin/60)}h ${next.diffMin%60}min`
+                    : "Heute vorbei";
+
+                  return (
+                    <div key={s.id} className="rounded-2xl p-4 shadow" style={{
+                      backgroundColor: dm ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.12)",
+                      border: isNow ? "1px solid #C8A44A" : "1px solid rgba(255,255,255,0.08)"
+                    }}>
+                      <div className="flex items-start gap-3">
+                        <span className="text-3xl flex-shrink-0">{s.emoji}</span>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-white font-bold text-sm">{s.name}</p>
+                            {isNow && (
+                              <span className="text-xs px-2 py-0.5 rounded-full font-bold animate-pulse"
+                                style={{backgroundColor: "rgba(200,164,74,0.3)", color: "#C8A44A"}}>
+                                ▶ Läuft jetzt
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-xs mt-0.5" style={{color: "#93c5fd"}}>{s.location} · {s.type} · {s.duration} Min.</p>
+
+                          {/* Nächste Vorstellung */}
+                          {next && (
+                            <div className="mt-2 flex items-center gap-2">
+                              <span className="text-xs font-bold px-2 py-1 rounded-lg"
+                                style={{backgroundColor: next.diffMin <= 30 ? "rgba(200,164,74,0.3)" : "rgba(255,255,255,0.1)", color: next.diffMin <= 30 ? "#C8A44A" : "#93c5fd"}}>
+                                ⏰ {next.time} Uhr – {countdownStr}
+                              </span>
+                            </div>
+                          )}
+                          {!next && !isNow && (
+                            <p className="text-xs mt-1" style={{color: "#6b7280"}}>Keine weiteren Vorstellungen heute</p>
+                          )}
+
+                          {/* Alle Zeiten */}
+                          <div className="flex flex-wrap gap-1 mt-2">
+                            {s.times.map(t => {
+                              const [h, m] = t.split(":").map(Number);
+                              const tMin = h * 60 + m;
+                              const past = tMin + s.duration < nowMin;
+                              const running = nowMin >= tMin && nowMin <= tMin + s.duration;
+                              return (
+                                <span key={t} className="text-xs px-2 py-0.5 rounded-full"
+                                  style={{
+                                    backgroundColor: running ? "rgba(200,164,74,0.3)" : past ? "rgba(255,255,255,0.05)" : "rgba(255,255,255,0.12)",
+                                    color: running ? "#C8A44A" : past ? "#4b5563" : "white",
+                                    textDecoration: past ? "line-through" : "none"
+                                  }}>
+                                  {t}
+                                </span>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="text-center text-xs pb-2" style={{color: "#93c5fd"}}>Zeiten aktualisieren sich automatisch · Beispieldaten</p>
             </div>
           );
         })()}
