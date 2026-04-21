@@ -110,7 +110,17 @@ export default function DLPMobil() {
   const [dragOver, setDragOver] = useState(null);
   const [collapsedLands, setCollapsedLands] = useState({});
 
-  const toggleLand = (land) => setCollapsedLands(prev => ({ ...prev, [land]: !prev[land] }));
+  const toggleLand = (land) => { haptic("light"); setCollapsedLands(prev => ({ ...prev, [land]: !prev[land] })); };
+
+  // Haptic Feedback
+  const haptic = (type = "light") => {
+    if (!navigator.vibrate) return;
+    if (type === "light") navigator.vibrate(10);
+    else if (type === "medium") navigator.vibrate(25);
+    else if (type === "heavy") navigator.vibrate([30, 10, 30]);
+    else if (type === "success") navigator.vibrate([10, 20, 10]);
+    else if (type === "error") navigator.vibrate([50, 30, 50]);
+  };
   const [dragging, setDragging] = useState(null);
   const [tooltip, setTooltip] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -118,6 +128,7 @@ export default function DLPMobil() {
   const touchStartY = { current: 0 };
 
   const triggerRefresh = () => {
+    haptic("medium");
     setRefreshing(true);
     setTimeout(() => {
       setLiveData(prev => prev.map(a => {
@@ -129,6 +140,7 @@ export default function DLPMobil() {
       }));
       const now = new Date();
       setLastUpdated(now.toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) + " Uhr");
+      haptic("success");
       setRefreshing(false);
       setPullY(0);
     }, 1200);
@@ -145,6 +157,7 @@ export default function DLPMobil() {
   };
   const handleTouchEnd = () => {
     if (pullY > 50 && !refreshing) {
+      haptic("heavy");
       triggerRefresh();
     } else {
       setPullY(0);
@@ -153,10 +166,13 @@ export default function DLPMobil() {
 
   const addToPlan = (attraction) => {
     if (!plan.find((p) => p.id === attraction.id)) {
+      haptic("medium");
       setPlan((prev) => [...prev, { id: attraction.id, customWait: attraction.wait }]);
+    } else {
+      haptic("light");
     }
   };
-  const removeFromPlan = (id) => setPlan((prev) => prev.filter((p) => p.id !== id));
+  const removeFromPlan = (id) => { haptic("light"); setPlan((prev) => prev.filter((p) => p.id !== id)); };
   const movePlan = (fromIdx, toIdx) => {
     const updated = [...plan];
     const [moved] = updated.splice(fromIdx, 1);
@@ -212,7 +228,9 @@ export default function DLPMobil() {
   }, [notifEnabled, notifThreshold]);
 
   const toggleFavorite = (id) => {
-    setFavorites((prev) => prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]);
+    const isFav = favorites.includes(id);
+    haptic(isFav ? "light" : "success");
+    setFavorites((prev) => isFav ? prev.filter((f) => f !== id) : [...prev, id]);
   };
 
   useEffect(() => {
@@ -264,7 +282,7 @@ export default function DLPMobil() {
             </div>
             <div>
               <h1 className="text-white font-black text-xl tracking-tight leading-none">ParcWizard</h1>
-              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 1.8</p>
+              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 1.9</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -423,7 +441,7 @@ export default function DLPMobil() {
           {lands.map((land) => (
             <button
               key={land}
-              onClick={() => setSelectedLand(land)}
+              onClick={() => { haptic("light"); setSelectedLand(land); }}
               className="px-4 py-2 rounded-full text-sm font-semibold transition-all"
               style={selectedLand === land
                 ? { backgroundColor: "#C8A44A", color: "#001a6e", fontWeight: 700 }
@@ -445,7 +463,7 @@ export default function DLPMobil() {
           ].map(f => (
             <button
               key={f.key}
-              onClick={() => setQuickFilter(quickFilter === f.key ? null : f.key)}
+              onClick={() => { haptic("light"); setQuickFilter(quickFilter === f.key ? null : f.key); }}
               className="px-3 py-1.5 rounded-full text-xs font-bold transition-all"
               style={quickFilter === f.key
                 ? { backgroundColor: f.active, color: "white", boxShadow: `0 0 8px ${f.active}88` }
@@ -476,7 +494,7 @@ export default function DLPMobil() {
           ].map((s) => (
             <button
               key={s.key}
-              onClick={() => setSortBy(s.key)}
+              onClick={() => { haptic("light"); setSortBy(s.key); }}
               className="px-3 py-1 rounded-full text-xs font-semibold transition-all"
               style={sortBy === s.key
                 ? { backgroundColor: "#C8A44A", color: "#001a6e", fontWeight: 700 }
