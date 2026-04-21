@@ -108,6 +108,9 @@ export default function DLPMobil() {
   }, []); // "alle" | "favoriten" | "plan" | "karte" // "alle" | "favoriten" | "plan"
   const [plan, setPlan] = useState([]); // [{id, customWait}]
   const [dragOver, setDragOver] = useState(null);
+  const [collapsedLands, setCollapsedLands] = useState({});
+
+  const toggleLand = (land) => setCollapsedLands(prev => ({ ...prev, [land]: !prev[land] }));
   const [dragging, setDragging] = useState(null);
   const [tooltip, setTooltip] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -261,7 +264,7 @@ export default function DLPMobil() {
             </div>
             <div>
               <h1 className="text-white font-black text-xl tracking-tight leading-none">ParcWizard</h1>
-              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 1.7</p>
+              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 1.8</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -485,55 +488,92 @@ export default function DLPMobil() {
           ))}
         </div>
 
-        {/* Attraction List */}
-        <div className="space-y-3">
-          {filtered.length === 0 && (
-            <div className="text-center py-10" style={{color: "#93c5fd"}}>Keine Attraktionen gefunden.</div>
-          )}
-          {activeTab === "favoriten" && favorites.length === 0 && (
-            <div className="text-center py-10" style={{color: "#93c5fd"}}>
-              <p className="text-3xl mb-3">⭐</p>
-              <p className="font-semibold text-white">Noch keine Favoriten</p>
-              <p className="text-sm mt-1">Tippe auf den Stern bei einer Attraktion, um sie zu merken.</p>
+        {/* Attraction List – gruppiert nach Land */}
+        {activeTab === "favoriten" && favorites.length === 0 ? (
+          <div className="text-center py-10" style={{color: "#93c5fd"}}>
+            <p className="text-3xl mb-3">⭐</p>
+            <p className="font-semibold text-white">Noch keine Favoriten</p>
+            <p className="text-sm mt-1">Tippe auf den Stern bei einer Attraktion, um sie zu merken.</p>
+          </div>
+        ) : filtered.length === 0 ? (
+          <div className="text-center py-10" style={{color: "#93c5fd"}}>Keine Attraktionen gefunden.</div>
+        ) : (() => {
+          // Gruppieren nach Land (Reihenfolge aus lands-Array)
+          const grouped = lands
+            .filter(l => l !== "Alle")
+            .map(land => ({ land, items: filtered.filter(a => a.land === land) }))
+            .filter(g => g.items.length > 0);
+
+          return (
+            <div className="space-y-4">
+              {grouped.map(({ land, items }) => {
+                const isCollapsed = collapsedLands[land];
+                const avgLandWait = Math.round(items.filter(a => a.status === "open").reduce((s, a) => s + a.wait, 0) / (items.filter(a => a.status === "open").length || 1));
+                const openInLand = items.filter(a => a.status === "open").length;
+                return (
+                  <div key={land}>
+                    {/* Bereich-Header */}
+                    <button
+                      onClick={() => toggleLand(land)}
+                      className="w-full flex items-center justify-between px-4 py-2.5 rounded-2xl mb-2 transition-all"
+                      style={{backgroundColor: dm ? "rgba(200,164,74,0.15)" : "rgba(200,164,74,0.2)", border: "1px solid rgba(200,164,74,0.3)"}}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="text-white font-bold text-sm">{land}</span>
+                        <span className="text-xs px-2 py-0.5 rounded-full" style={{backgroundColor: "rgba(255,255,255,0.15)", color: "#93c5fd"}}>
+                          {openInLand}/{items.length} offen
+                        </span>
+                        {openInLand > 0 && (
+                          <span className="text-xs font-bold" style={{color: "#C8A44A"}}>Ø {avgLandWait} min</span>
+                        )}
+                      </div>
+                      <span className="text-white text-sm transition-transform" style={{transform: isCollapsed ? "rotate(-90deg)" : "rotate(0deg)"}}>▾</span>
+                    </button>
+
+                    {/* Attraktionen */}
+                    {!isCollapsed && (
+                      <div className="space-y-2 pl-1">
+                        {items.map((a) => (
+                          <div
+                            key={a.id}
+                            className={`rounded-2xl p-4 flex items-center justify-between shadow ${waitColor(a.wait, a.status, dm)}`}
+                          >
+                            <button
+                              onClick={() => toggleFavorite(a.id)}
+                              className="mr-3 text-xl flex-shrink-0 transition-transform active:scale-125"
+                            >
+                              {favorites.includes(a.id) ? "⭐" : "☆"}
+                            </button>
+                            <div className="flex-1 min-w-0">
+                              <p className={`font-bold truncate ${dm ? "text-gray-100" : "text-gray-900"}`}>{a.name}</p>
+                            </div>
+                            <button
+                              onClick={() => addToPlan(a)}
+                              className="mr-2 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all"
+                              style={{ backgroundColor: plan.find((p) => p.id === a.id) ? "#C8A44A" : "rgba(0,0,0,0.15)", color: plan.find((p) => p.id === a.id) ? "#001a6e" : "inherit" }}
+                            >
+                              {plan.find((p) => p.id === a.id) ? "✔️" : "+"}
+                            </button>
+                            <div className={`ml-2 flex-shrink-0 rounded-xl px-4 py-2 text-center min-w-16 ${waitBadgeColor(a.wait, a.status)}`}>
+                              {a.status === "closed" ? (
+                                <span className="text-xs font-bold">Geschlossen</span>
+                              ) : (
+                                <>
+                                  <p className="font-black text-lg leading-none">{a.wait}</p>
+                                  <p className="text-xs opacity-80">min</p>
+                                </>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
-          )}
-          {filtered.map((a) => (
-            <div
-              key={a.id}
-              className={`rounded-2xl p-4 flex items-center justify-between shadow ${waitColor(a.wait, a.status, dm)}`}
-            >
-              <button
-                onClick={() => toggleFavorite(a.id)}
-                className="mr-3 text-xl flex-shrink-0 transition-transform active:scale-125"
-                title={favorites.includes(a.id) ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"}
-              >
-                {favorites.includes(a.id) ? "⭐" : "☆"}
-              </button>
-              <div className="flex-1 min-w-0">
-                <p className={`font-bold truncate ${dm ? "text-gray-100" : "text-gray-900"}`}>{a.name}</p>
-                <p className={`text-xs mt-0.5 ${dm ? "text-gray-400" : "text-gray-500"}`}>{a.land}</p>
-              </div>
-              <button
-                onClick={() => addToPlan(a)}
-                className="mr-2 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all"
-                style={{ backgroundColor: plan.find((p) => p.id === a.id) ? "#C8A44A" : "rgba(0,0,0,0.15)", color: plan.find((p) => p.id === a.id) ? "#001a6e" : "inherit" }}
-                title={plan.find((p) => p.id === a.id) ? "Im Tagesplan" : "Zum Tagesplan hinzufügen"}
-              >
-                {plan.find((p) => p.id === a.id) ? "✔️" : "+"}
-              </button>
-              <div className={`ml-2 flex-shrink-0 rounded-xl px-4 py-2 text-center min-w-16 ${waitBadgeColor(a.wait, a.status)}`}>
-                {a.status === "closed" ? (
-                  <span className="text-xs font-bold">Geschlossen</span>
-                ) : (
-                  <>
-                    <p className="font-black text-lg leading-none">{a.wait}</p>
-                    <p className="text-xs opacity-80">min</p>
-                  </>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+          );
+        })()}
 
         {/* Tagesplan Tab */}
         {activeTab === "plan" && (
