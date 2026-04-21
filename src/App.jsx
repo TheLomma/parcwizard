@@ -41,6 +41,12 @@ export default function DLPMobil() {
   const [searchQuery, setSearchQuery] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
   const [darkMode, setDarkMode] = useState(false);
+  const [notifEnabled, setNotifEnabled] = useState(false);
+  const [notifThreshold, setNotifThreshold] = useState(20);
+  const [notifications, setNotifications] = useState([]);
+  const [liveData, setLiveData] = useState(attractions.map(a => ({...a})));
+  const prevData = useState(attractions.map(a => ({...a})))[0];
+  const prevRef = { current: attractions.map(a => ({...a})) };
   const [favorites, setFavorites] = useState([]);
   const [activeTab, setActiveTab] = useState("alle"); // "alle" | "favoriten" | "plan"
   const [plan, setPlan] = useState([]); // [{id, customWait}]
@@ -63,6 +69,50 @@ export default function DLPMobil() {
 
   const dm = darkMode;
 
+  // Simuliere Wartezeit-Änderungen alle 30 Sek.
+  useEffect(() => {
+    if (!notifEnabled) return;
+    const interval = setInterval(() => {
+      setLiveData(prev => {
+        const updated = prev.map(a => {
+          if (a.status === "closed" && Math.random() < 0.15) {
+            return { ...a, status: "open", wait: Math.floor(Math.random() * 30) + 5 };
+          }
+          if (a.status === "open" && Math.random() < 0.08) {
+            return { ...a, status: "closed", wait: 0 };
+          }
+          if (a.status === "open") {
+            const delta = Math.floor(Math.random() * 21) - 10;
+            return { ...a, wait: Math.max(0, a.wait + delta) };
+          }
+          return a;
+        });
+
+        // Benachrichtigungen prüfen
+        const newNotifs = [];
+        updated.forEach(a => {
+          const old = prevRef.current.find(o => o.id === a.id);
+          if (!old) return;
+          const isFav = false; // wird unten geprüft
+          // Status-Änderungen immer melden
+          if (old.status === "closed" && a.status === "open") {
+            newNotifs.push({ id: Date.now() + a.id, type: "open", text: `✅ ${a.name} ist jetzt geöffnet! (${a.wait} min)` });
+          } else if (old.status === "open" && a.status === "closed") {
+            newNotifs.push({ id: Date.now() + a.id, type: "closed", text: `🔴 ${a.name} hat gerade geschlossen.` });
+          } else if (a.status === "open" && old.wait > notifThreshold && a.wait <= notifThreshold) {
+            newNotifs.push({ id: Date.now() + a.id, type: "low", text: `⏱️ ${a.name}: Wartezeit jetzt nur noch ${a.wait} min!` });
+          }
+        });
+        prevRef.current = updated;
+        if (newNotifs.length > 0) {
+          setNotifications(prev => [...newNotifs, ...prev].slice(0, 10));
+        }
+        return updated;
+      });
+    }, 8000); // 8 Sek. für Demo-Zwecke
+    return () => clearInterval(interval);
+  }, [notifEnabled, notifThreshold]);
+
   const toggleFavorite = (id) => {
     setFavorites((prev) => prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]);
   };
@@ -77,7 +127,7 @@ export default function DLPMobil() {
     return () => clearInterval(interval);
   }, []);
 
-  const filtered = attractions
+  const filtered = liveData
     .filter((a) => activeTab === "favoriten" ? favorites.includes(a.id) : true)
     .filter((a) => selectedLand === "Alle" || a.land === selectedLand)
     .filter((a) => a.name.toLowerCase().includes(searchQuery.toLowerCase()))
@@ -87,10 +137,10 @@ export default function DLPMobil() {
       return a.name.localeCompare(b.name);
     });
 
-  const openCount = attractions.filter((a) => a.status === "open").length;
+  const openCount = liveData.filter((a) => a.status === "open").length;
   const avgWait = Math.round(
-    attractions.filter((a) => a.status === "open").reduce((sum, a) => sum + a.wait, 0) /
-      attractions.filter((a) => a.status === "open").length
+    liveData.filter((a) => a.status === "open").reduce((sum, a) => sum + a.wait, 0) /
+      (liveData.filter((a) => a.status === "open").length || 1)
   );
 
   return (
@@ -126,6 +176,19 @@ export default function DLPMobil() {
         </div>
       </header>
 
+      {/* Notification Banners */}
+      {notifications.length > 0 && (
+        <div className="fixed top-32 right-3 z-50 space-y-2 w-72">
+          {notifications.slice(0, 3).map((n) => (
+            <div key={n.id} className="rounded-xl px-4 py-3 shadow-xl flex items-start gap-2 text-sm font-semibold animate-pulse"
+              style={{backgroundColor: n.type === "open" ? "#166534" : n.type === "closed" ? "#7f1d1d" : "#1e3a5f", color: "white", border: "1px solid #C8A44A"}}>
+              <span className="flex-1">{n.text}</span>
+              <button onClick={() => setNotifications(prev => prev.filter(x => x.id !== n.id))} className="text-white opacity-60 hover:opacity-100 ml-1">✕</button>
+            </div>
+          ))}
+        </div>
+      )}
+
       {/* Tab Bar */}
       <div className="sticky top-16 z-10 shadow" style={{backgroundColor: dm ? "#05051a" : "#001a6e"}}>
         <div className="max-w-2xl mx-auto px-4 flex gap-1 pb-2 pt-1">
@@ -150,6 +213,36 @@ export default function DLPMobil() {
       </div>
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-5">
+
+        {/* Notif Settings Banner */}
+        <div className="rounded-2xl p-4 flex items-center gap-3" style={{backgroundColor: notifEnabled ? "rgba(200,164,74,0.2)" : dm ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.12)", border: notifEnabled ? "1px solid #C8A44A" : "1px solid transparent"}}>
+          <span className="text-2xl">{notifEnabled ? "🔔" : "🔕"}</span>
+          <div className="flex-1">
+            <p className="text-white font-semibold text-sm">Benachrichtigungen</p>
+            {notifEnabled && (
+              <div className="flex items-center gap-2 mt-1">
+                <span className="text-xs" style={{color: "#93c5fd"}}>Alarm bei ≤</span>
+                <input
+                  type="number"
+                  min="5" max="120" step="5"
+                  value={notifThreshold}
+                  onChange={(e) => setNotifThreshold(Number(e.target.value))}
+                  className="w-14 px-2 py-0.5 rounded-lg text-xs font-bold text-center"
+                  style={{backgroundColor: "#C8A44A", color: "#001a6e", border: "none"}}
+                />
+                <span className="text-xs" style={{color: "#93c5fd"}}>min Wartezeit</span>
+              </div>
+            )}
+            {!notifEnabled && <p className="text-xs mt-0.5" style={{color: "#93c5fd"}}>Aktivieren für Warnungen bei Öffnung/Schließung & kurzen Wartezeiten</p>}
+          </div>
+          <button
+            onClick={() => { setNotifEnabled(!notifEnabled); if (!notifEnabled) setNotifications([]); }}
+            className="px-3 py-1.5 rounded-xl text-xs font-bold transition-all"
+            style={notifEnabled ? {backgroundColor: "#C8A44A", color: "#001a6e"} : {backgroundColor: "rgba(255,255,255,0.15)", color: "white"}}
+          >
+            {notifEnabled ? "An" : "Aus"}
+          </button>
+        </div>
 
         {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
