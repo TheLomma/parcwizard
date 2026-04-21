@@ -109,6 +109,43 @@ export default function DLPMobil() {
   const [dragOver, setDragOver] = useState(null);
   const [dragging, setDragging] = useState(null);
   const [tooltip, setTooltip] = useState(null);
+  const [refreshing, setRefreshing] = useState(false);
+  const [pullY, setPullY] = useState(0);
+  const touchStartY = { current: 0 };
+
+  const triggerRefresh = () => {
+    setRefreshing(true);
+    setTimeout(() => {
+      setLiveData(prev => prev.map(a => {
+        if (a.status === "open") {
+          const delta = Math.floor(Math.random() * 15) - 7;
+          return { ...a, wait: Math.max(0, a.wait + delta) };
+        }
+        return a;
+      }));
+      const now = new Date();
+      setLastUpdated(now.toLocaleString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit" }) + " Uhr");
+      setRefreshing(false);
+      setPullY(0);
+    }, 1200);
+  };
+
+  const handleTouchStart = (e) => {
+    touchStartY.current = e.touches[0].clientY;
+  };
+  const handleTouchMove = (e) => {
+    const delta = e.touches[0].clientY - touchStartY.current;
+    if (delta > 0 && window.scrollY === 0) {
+      setPullY(Math.min(delta * 0.4, 80));
+    }
+  };
+  const handleTouchEnd = () => {
+    if (pullY > 50 && !refreshing) {
+      triggerRefresh();
+    } else {
+      setPullY(0);
+    }
+  };
 
   const addToPlan = (attraction) => {
     if (!plan.find((p) => p.id === attraction.id)) {
@@ -201,7 +238,12 @@ export default function DLPMobil() {
   );
 
   return (
-    <div className="min-h-screen font-sans" style={{background: dm ? "linear-gradient(to bottom, #0a0a1a, #0f0f2e)" : "linear-gradient(to bottom, #002790, #0038b8)"}}>  
+    <div
+      className="min-h-screen font-sans"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
+      style={{background: dm ? "linear-gradient(to bottom, #0a0a1a, #0f0f2e)" : "linear-gradient(to bottom, #002790, #0038b8)"}}>  
 
       {/* Header */}
       <header className="sticky top-0 z-10 shadow-xl" style={{backgroundColor: dm ? "#05051a" : "#001a6e"}}>
@@ -212,13 +254,21 @@ export default function DLPMobil() {
             </div>
             <div>
               <h1 className="text-white font-black text-xl tracking-tight leading-none">ParcWizard</h1>
-              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 1.5</p>
+              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 1.6</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
             <div className="text-right">
               <p className="text-xs" style={{color: "#93c5fd"}}>Aktualisiert</p>
               <p className="text-white text-xs font-semibold">{lastUpdated}</p>
+            <button
+              onClick={triggerRefresh}
+              disabled={refreshing}
+              className="text-xs mt-0.5 font-semibold"
+              style={{color: refreshing ? "#6b7280" : "#C8A44A"}}
+            >
+              {refreshing ? "..." : "🔄 Refresh"}
+            </button>
             </div>
             {/* Dark Mode Toggle */}
             <button
@@ -232,6 +282,33 @@ export default function DLPMobil() {
           </div>
         </div>
       </header>
+
+      {/* Pull-to-Refresh Indicator */}
+      {(pullY > 10 || refreshing) && (
+        <div
+          className="flex items-center justify-center gap-2 overflow-hidden transition-all"
+          style={{
+            height: refreshing ? 48 : pullY,
+            backgroundColor: dm ? "rgba(200,164,74,0.15)" : "rgba(255,255,255,0.1)"
+          }}
+        >
+          <span
+            className="text-xl"
+            style={{
+              display: "inline-block",
+              transform: refreshing ? "rotate(0deg)" : `rotate(${pullY * 3}deg)`,
+              transition: refreshing ? "none" : "transform 0.1s",
+              animation: refreshing ? "spin 0.8s linear infinite" : "none"
+            }}
+          >
+            🔄
+          </span>
+          <span className="text-sm font-semibold" style={{color: "#C8A44A"}}>
+            {refreshing ? "Aktualisiere..." : pullY > 50 ? "Loslassen zum Aktualisieren" : "Herunterziehen zum Aktualisieren"}
+          </span>
+        </div>
+      )}
+      <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
 
       {/* Notification Banners */}
       {notifications.length > 0 && (
