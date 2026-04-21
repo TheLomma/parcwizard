@@ -315,7 +315,7 @@ export default function DLPMobil() {
             </div>
             <div>
               <h1 className="text-white font-black text-xl tracking-tight leading-none">ParcWizard</h1>
-              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 2.2</p>
+              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 2.3</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -411,6 +411,44 @@ export default function DLPMobil() {
       </div>
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-5">
+
+        {/* Beste Zeit jetzt – Banner */}
+        {(() => {
+          const bestLand = lands
+            .filter(l => l !== "Alle")
+            .map(land => {
+              const open = liveData.filter(a => a.land === land && a.status === "open");
+              if (open.length === 0) return null;
+              const avg = Math.round(open.reduce((s, a) => s + a.wait, 0) / open.length);
+              return { land, avg, count: open.length };
+            })
+            .filter(Boolean)
+            .sort((a, b) => a.avg - b.avg)[0];
+          const shortAttractions = liveData.filter(a => a.status === "open" && a.wait <= 15);
+          if (!bestLand) return null;
+          return (
+            <div className="rounded-2xl p-4" style={{background: "linear-gradient(135deg, rgba(200,164,74,0.25), rgba(0,55,150,0.3))", border: "1px solid #C8A44A"}}>
+              <div className="flex items-center gap-2 mb-2">
+                <span className="text-xl">🏆</span>
+                <p className="text-white font-black text-sm">Beste Zeit jetzt</p>
+              </div>
+              <p className="text-white font-bold">Jetzt ideal: <span style={{color: "#C8A44A"}}>{bestLand.land}</span></p>
+              <p className="text-xs mt-0.5" style={{color: "#93c5fd"}}>Ø {bestLand.avg} min · {bestLand.count} Attraktion{bestLand.count !== 1 ? "en" : ""} offen</p>
+              {shortAttractions.length > 0 && (
+                <div className="mt-2 flex flex-wrap gap-1">
+                  {shortAttractions.slice(0, 3).map(a => (
+                    <span key={a.id} className="text-xs px-2 py-0.5 rounded-full font-semibold" style={{backgroundColor: "rgba(34,197,94,0.25)", color: "#86efac"}}>
+                      ⚡ {a.name.split(" ").slice(0,2).join(" ")} – {a.wait} min
+                    </span>
+                  ))}
+                  {shortAttractions.length > 3 && (
+                    <span className="text-xs px-2 py-0.5 rounded-full" style={{backgroundColor: "rgba(255,255,255,0.1)", color: "#93c5fd"}}>+{shortAttractions.length - 3} weitere</span>
+                  )}
+                </div>
+              )}
+            </div>
+          );
+        })()}
 
         {/* Notif Settings Banner */}
         <div className="rounded-2xl p-4 flex items-center gap-3" style={{backgroundColor: notifEnabled ? "rgba(200,164,74,0.2)" : dm ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.12)", border: notifEnabled ? "1px solid #C8A44A" : "1px solid transparent"}}>
