@@ -315,7 +315,7 @@ export default function DLPMobil() {
             </div>
             <div>
               <h1 className="text-white font-black text-xl tracking-tight leading-none">ParcWizard</h1>
-              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 2.3</p>
+              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 2.4</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -446,6 +446,47 @@ export default function DLPMobil() {
                   )}
                 </div>
               )}
+            </div>
+          );
+        })()}
+
+        {/* Park-Auslastung */}
+        {(() => {
+          const openA = liveData.filter(a => a.status === "open");
+          const avg = openA.length ? Math.round(openA.reduce((s,a) => s + a.wait, 0) / openA.length) : 0;
+          const level = avg <= 20 ? "ruhig" : avg <= 45 ? "mittel" : "voll";
+          const color = level === "ruhig" ? "#22c55e" : level === "mittel" ? "#facc15" : "#ef4444";
+          const emoji = level === "ruhig" ? "🟢" : level === "mittel" ? "🟡" : "🔴";
+          const label = level === "ruhig" ? "Ruhig – guter Tag!" : level === "mittel" ? "Mäßig besucht" : "Sehr voll – lange Wartezeiten";
+          const pct = Math.min(100, Math.round((avg / 90) * 100));
+          return (
+            <div className="rounded-2xl p-4" style={{backgroundColor: dm ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.12)", border: `1px solid ${color}44`}}>
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <span className="text-xl">{emoji}</span>
+                  <p className="text-white font-bold text-sm">Park-Auslastung</p>
+                </div>
+                <span className="text-sm font-black" style={{color}}>{level.toUpperCase()}</span>
+              </div>
+              <div className="w-full rounded-full h-3 mb-2" style={{backgroundColor: "rgba(255,255,255,0.1)"}}>
+                <div className="h-3 rounded-full transition-all" style={{width: `${pct}%`, backgroundColor: color, boxShadow: `0 0 8px ${color}88`}}/>
+              </div>
+              <div className="flex justify-between items-center">
+                <p className="text-xs" style={{color: "#93c5fd"}}>{label}</p>
+                <p className="text-xs font-bold" style={{color}}>Ø {avg} min</p>
+              </div>
+              <div className="flex gap-3 mt-2 flex-wrap">
+                {[
+                  { col: "#22c55e", lbl: "Ruhig", range: "≤ 20 min" },
+                  { col: "#facc15", lbl: "Mittel", range: "21–45 min" },
+                  { col: "#ef4444", lbl: "Voll", range: "> 45 min" },
+                ].map(l => (
+                  <div key={l.lbl} className="flex items-center gap-1">
+                    <div className="w-2 h-2 rounded-full" style={{backgroundColor: l.col}}/>
+                    <span className="text-xs" style={{color: "#93c5fd"}}>{l.lbl} ({l.range})</span>
+                  </div>
+                ))}
+              </div>
             </div>
           );
         })()}
