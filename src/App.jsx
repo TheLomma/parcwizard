@@ -109,7 +109,8 @@ export default function DLPMobil() {
   const [plan, setPlan] = useState([]); // [{id, customWait}]
   const [dragOver, setDragOver] = useState(null);
   const [collapsedLands, setCollapsedLands] = useState({});
-  const [swipeState, setSwipeState] = useState({}); // {id: offsetX}
+  const [swipeState, setSwipeState] = useState({});
+  const [compactMode, setCompactMode] = useState(false); // {id: offsetX}
   const swipeTouchStart = { current: {} };
 
   const handleSwipeStart = (id, e) => {
@@ -303,7 +304,7 @@ export default function DLPMobil() {
             </div>
             <div>
               <h1 className="text-white font-black text-xl tracking-tight leading-none">ParcWizard</h1>
-              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 2.0</p>
+              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 2.1</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -505,6 +506,20 @@ export default function DLPMobil() {
           )}
         </div>
 
+        {/* Kompakt-Modus Toggle */}
+        <div className="flex justify-end">
+          <button
+            onClick={() => { haptic("light"); setCompactMode(!compactMode); }}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold transition-all"
+            style={compactMode
+              ? { backgroundColor: "#C8A44A", color: "#001a6e" }
+              : { backgroundColor: dm ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.15)", color: "white" }
+            }
+          >
+            {compactMode ? "⊡ Kompakt AN" : "☰ Kompakt AUS"}
+          </button>
+        </div>
+
         {/* Sort */}
         <div className="flex items-center gap-2">
           <span className="text-sm" style={{color: "#93c5fd"}}>Sortieren:</span>
@@ -571,7 +586,7 @@ export default function DLPMobil() {
 
                     {/* Attraktionen */}
                     {!isCollapsed && (
-                      <div className="space-y-2 pl-1">
+                      <div className={`pl-1 ${compactMode ? "space-y-1" : "space-y-2"}`}>
                         {items.map((a) => (
                           <div key={a.id} className="relative overflow-hidden rounded-2xl">
                             {/* Swipe-Hintergrund */}
@@ -580,7 +595,7 @@ export default function DLPMobil() {
                               <span className="text-2xl">{favorites.includes(a.id) ? "💔" : "⭐"}</span>
                             </div>
                             <div
-                              className={`relative rounded-2xl p-4 flex items-center justify-between shadow ${waitColor(a.wait, a.status, dm)}`}
+                              className={`relative rounded-2xl flex items-center justify-between shadow ${waitColor(a.wait, a.status, dm)} ${compactMode ? "px-3 py-2" : "p-4"}`}
                               style={{transform: `translateX(${swipeState[a.id] || 0}px)`, transition: swipeState[a.id] === 0 ? "transform 0.3s ease" : "none"}}
                               onTouchStart={(e) => handleSwipeStart(a.id, e)}
                               onTouchMove={(e) => handleSwipeMove(a.id, e)}
@@ -588,27 +603,29 @@ export default function DLPMobil() {
                             >
                             <button
                               onClick={() => toggleFavorite(a.id)}
-                              className="mr-3 text-xl flex-shrink-0 transition-transform active:scale-125"
+                              className={`flex-shrink-0 transition-transform active:scale-125 ${compactMode ? "mr-2 text-base" : "mr-3 text-xl"}`}
                             >
                               {favorites.includes(a.id) ? "⭐" : "☆"}
                             </button>
                             <div className="flex-1 min-w-0">
-                              <p className={`font-bold truncate ${dm ? "text-gray-100" : "text-gray-900"}`}>{a.name}</p>
+                              <p className={`font-bold truncate ${compactMode ? "text-sm" : "text-base"} ${dm ? "text-gray-100" : "text-gray-900"}`}>{a.name}</p>
+                              {!compactMode && <p className={`text-xs mt-0.5 ${dm ? "text-gray-400" : "text-gray-500"}`}>{a.land}</p>}
                             </div>
                             <button
                               onClick={() => addToPlan(a)}
-                              className="mr-2 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all"
+                              className={`flex-shrink-0 rounded-full flex items-center justify-center text-sm transition-all ${compactMode ? "mr-1 w-6 h-6 text-xs" : "mr-2 w-8 h-8"}`}
                               style={{ backgroundColor: plan.find((p) => p.id === a.id) ? "#C8A44A" : "rgba(0,0,0,0.15)", color: plan.find((p) => p.id === a.id) ? "#001a6e" : "inherit" }}
                             >
                               {plan.find((p) => p.id === a.id) ? "✔️" : "+"}
                             </button>
-                            <div className={`ml-2 flex-shrink-0 rounded-xl px-4 py-2 text-center min-w-16 ${waitBadgeColor(a.wait, a.status)}`}>
+                            <div className={`flex-shrink-0 rounded-xl text-center ${waitBadgeColor(a.wait, a.status)} ${compactMode ? "ml-1 px-2 py-1 min-w-10" : "ml-2 px-4 py-2 min-w-16"}`}>
                               {a.status === "closed" ? (
-                                <span className="text-xs font-bold">Geschlossen</span>
+                                <span className="text-xs font-bold">{compactMode ? "✕" : "Geschlossen"}</span>
                               ) : (
                                 <>
-                                  <p className="font-black text-lg leading-none">{a.wait}</p>
-                                  <p className="text-xs opacity-80">min</p>
+                                  <p className={`font-black leading-none ${compactMode ? "text-sm" : "text-lg"}`}>{a.wait}</p>
+                                  {!compactMode && <p className="text-xs opacity-80">min</p>}
+                                  {compactMode && <p className="text-xs opacity-80">m</p>}
                                 </>
                               )}
                             </div>
