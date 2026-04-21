@@ -17,6 +17,29 @@ const attractions = [
   { id: 14, name: "Cars Road Trip", land: "Walt Disney Studios", wait: 25, status: "open" },
 ];
 
+const restaurants = [
+  { id: 1, name: "Plaza Gardens Restaurant", land: "Main Street", type: "Restaurant", open: "12:00", close: "21:00", reservation: true, reserved: false, cuisine: "Französisch", price: "€€€" },
+  { id: 2, name: "Walt's – An American Restaurant", land: "Main Street", type: "Restaurant", open: "12:00", close: "22:00", reservation: true, reserved: true, cuisine: "Amerikanisch", price: "€€€" },
+  { id: 3, name: "Blue Lagoon Restaurant", land: "Adventureland", type: "Restaurant", open: "11:30", close: "21:30", reservation: true, reserved: false, cuisine: "Karibisch", price: "€€€" },
+  { id: 4, name: "Hakuna Matata Restaurant", land: "Adventureland", type: "Schnellimbiss", open: "11:00", close: "20:00", reservation: false, reserved: false, cuisine: "Afrikanisch", price: "€€" },
+  { id: 5, name: "Cowboy Cookout Barbecue", land: "Frontierland", type: "Schnellimbiss", open: "11:00", close: "20:30", reservation: false, reserved: false, cuisine: "BBQ", price: "€€" },
+  { id: 6, name: "Last Chance Café", land: "Frontierland", type: "Snack", open: "10:00", close: "18:00", reservation: false, reserved: false, cuisine: "Snacks", price: "€" },
+  { id: 7, name: "Auberge de Cendrillon", land: "Fantasyland", type: "Restaurant", open: "12:00", close: "21:00", reservation: true, reserved: true, cuisine: "Französisch", price: "€€€" },
+  { id: 8, name: "Pizzeria Bella Notte", land: "Fantasyland", type: "Schnellimbiss", open: "11:00", close: "20:00", reservation: false, reserved: false, cuisine: "Italienisch", price: "€€" },
+  { id: 9, name: "Café Hyperion", land: "Discoveryland", type: "Schnellimbiss", open: "10:30", close: "19:30", reservation: false, reserved: false, cuisine: "Burger & Wraps", price: "€€" },
+  { id: 10, name: "The Lucky Nugget Saloon", land: "Frontierland", type: "Restaurant", open: "12:00", close: "20:00", reservation: false, reserved: false, cuisine: "Amerikanisch", price: "€€" },
+  { id: 11, name: "Bistrot Chez Rémy", land: "Walt Disney Studios", type: "Restaurant", open: "12:00", close: "21:30", reservation: true, reserved: false, cuisine: "Französisch", price: "€€€" },
+  { id: 12, name: "Restaurant des Stars", land: "Walt Disney Studios", type: "Restaurant", open: "12:00", close: "21:00", reservation: true, reserved: true, cuisine: "Amerikanisch", price: "€€€" },
+];
+
+const isOpen = (open, close) => {
+  const now = new Date();
+  const [oh, om] = open.split(":").map(Number);
+  const [ch, cm] = close.split(":").map(Number);
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  return nowMin >= oh * 60 + om && nowMin <= ch * 60 + cm;
+};
+
 const lands = ["Alle", "Frontierland", "Adventureland", "Fantasyland", "Discoveryland", "Walt Disney Studios"];
 
 const waitColor = (wait, status, dark) => {
@@ -48,10 +71,12 @@ export default function DLPMobil() {
   const prevData = useState(attractions.map(a => ({...a})))[0];
   const prevRef = { current: attractions.map(a => ({...a})) };
   const [favorites, setFavorites] = useState([]);
-  const [activeTab, setActiveTab] = useState("alle"); // "alle" | "favoriten" | "plan"
+  const [activeTab, setActiveTab] = useState("alle"); // "alle" | "favoriten" | "plan" | "karte" | "restaurants"
+  const [restFilter, setRestFilter] = useState("Alle"); // "alle" | "favoriten" | "plan" | "karte" // "alle" | "favoriten" | "plan"
   const [plan, setPlan] = useState([]); // [{id, customWait}]
   const [dragOver, setDragOver] = useState(null);
   const [dragging, setDragging] = useState(null);
+  const [tooltip, setTooltip] = useState(null);
 
   const addToPlan = (attraction) => {
     if (!plan.find((p) => p.id === attraction.id)) {
@@ -155,7 +180,7 @@ export default function DLPMobil() {
             </div>
             <div>
               <h1 className="text-white font-black text-xl tracking-tight leading-none">ParcWizard</h1>
-              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 1.3</p>
+              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 1.4</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -196,6 +221,8 @@ export default function DLPMobil() {
             { key: "alle", label: "🎢 Alle Attraktionen" },
             { key: "favoriten", label: `⭐ Favoriten (${favorites.length})` },
             { key: "plan", label: `🗓️ Tagesplan (${plan.length})` },
+            { key: "karte", label: "🗺️ Karte" },
+            { key: "restaurants", label: "🍽️ Restaurants" },
           ].map((t) => (
             <button
               key={t.key}
@@ -425,6 +452,174 @@ export default function DLPMobil() {
             )}
           </div>
         )}
+
+        {/* Karten-Ansicht */}
+        {activeTab === "karte" && (() => {
+          // Koordinaten relativ zur SVG-Karte (800x600)
+          const pinData = [
+            { id: 1,  x: 200, y: 280 },
+            { id: 2,  x: 160, y: 370 },
+            { id: 3,  x: 420, y: 200 },
+            { id: 4,  x: 600, y: 180 },
+            { id: 5,  x: 390, y: 260 },
+            { id: 6,  x: 130, y: 310 },
+            { id: 7,  x: 630, y: 240 },
+            { id: 8,  x: 440, y: 310 },
+            { id: 9,  x: 220, y: 220 },
+            { id: 10, x: 580, y: 140 },
+            { id: 11, x: 560, y: 430 },
+            { id: 12, x: 490, y: 460 },
+            { id: 13, x: 620, y: 490 },
+            { id: 14, x: 530, y: 380 },
+          ];
+          const pinColor = (a) => {
+            if (a.status === "closed") return "#6b7280";
+            if (a.wait <= 15) return "#22c55e";
+            if (a.wait <= 40) return "#facc15";
+            if (a.wait <= 70) return "#f97316";
+            return "#dc2626";
+          };
+          return (
+            <div className="space-y-3">
+              <div className="rounded-2xl overflow-hidden shadow-xl" style={{backgroundColor: dm ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.12)", border: "1px solid rgba(200,164,74,0.3)"}}>
+                <div className="px-4 pt-3 pb-1">
+                  <p className="text-white font-semibold text-sm">Parkübersicht – Disneyland Paris</p>
+                  <p className="text-xs" style={{color:"#93c5fd"}}>Tippe auf einen Pin für Details</p>
+                </div>
+                <div className="relative w-full" style={{paddingBottom: "75%"}}>
+                  <svg viewBox="0 0 800 600" className="absolute inset-0 w-full h-full" style={{fontFamily:"sans-serif"}}>
+                    {/* Hintergrund */}
+                    <rect width="800" height="600" fill={dm ? "#0f172a" : "#1e3a5f"} rx="0"/>
+
+                    {/* Bereiche */}
+                    <ellipse cx="400" cy="320" rx="320" ry="240" fill="rgba(0,55,150,0.25)" stroke="rgba(200,164,74,0.2)" strokeWidth="1"/>
+
+                    {/* Main Street */}
+                    <rect x="350" y="350" width="100" height="160" rx="8" fill="rgba(200,164,74,0.15)" stroke="rgba(200,164,74,0.3)" strokeWidth="1"/>
+                    <text x="400" y="445" textAnchor="middle" fill="#C8A44A" fontSize="11" fontWeight="bold">Main Street</text>
+
+                    {/* Frontierland */}
+                    <ellipse cx="195" cy="260" rx="100" ry="80" fill="rgba(180,100,30,0.2)" stroke="rgba(180,100,30,0.4)" strokeWidth="1"/>
+                    <text x="195" y="175" textAnchor="middle" fill="#fbbf24" fontSize="10" fontWeight="bold">Frontierland</text>
+
+                    {/* Adventureland */}
+                    <ellipse cx="160" cy="370" rx="90" ry="65" fill="rgba(34,100,34,0.2)" stroke="rgba(34,150,34,0.4)" strokeWidth="1"/>
+                    <text x="160" y="445" textAnchor="middle" fill="#86efac" fontSize="10" fontWeight="bold">Adventureland</text>
+
+                    {/* Fantasyland */}
+                    <ellipse cx="420" cy="240" rx="100" ry="80" fill="rgba(150,50,200,0.15)" stroke="rgba(180,80,220,0.4)" strokeWidth="1"/>
+                    <text x="420" y="155" textAnchor="middle" fill="#d8b4fe" fontSize="10" fontWeight="bold">Fantasyland</text>
+
+                    {/* Discoveryland */}
+                    <ellipse cx="610" cy="200" rx="100" ry="75" fill="rgba(30,80,180,0.2)" stroke="rgba(60,130,220,0.4)" strokeWidth="1"/>
+                    <text x="610" y="120" textAnchor="middle" fill="#93c5fd" fontSize="10" fontWeight="bold">Discoveryland</text>
+
+                    {/* Walt Disney Studios */}
+                    <ellipse cx="570" cy="440" rx="120" ry="90" fill="rgba(180,30,30,0.15)" stroke="rgba(220,60,60,0.4)" strokeWidth="1"/>
+                    <text x="570" y="545" textAnchor="middle" fill="#fca5a5" fontSize="10" fontWeight="bold">Walt Disney Studios</text>
+
+                    {/* Pins */}
+                    {pinData.map((pin) => {
+                      const a = liveData.find(x => x.id === pin.id);
+                      if (!a) return null;
+                      const col = pinColor(a);
+                      const isActive = tooltip === a.id;
+                      return (
+                        <g key={a.id} style={{cursor:"pointer"}} onClick={() => setTooltip(isActive ? null : a.id)}>
+                          <circle cx={pin.x} cy={pin.y} r={isActive ? 18 : 14} fill={col} stroke="white" strokeWidth={isActive ? 3 : 2} opacity="0.95"/>
+                          <text x={pin.x} y={pin.y+5} textAnchor="middle" fill="white" fontSize="10" fontWeight="bold">
+                            {a.status === "closed" ? "✕" : `${a.wait}`}
+                          </text>
+                          {isActive && (
+                            <>
+                              <rect x={pin.x - 70} y={pin.y - 58} width="140" height="48" rx="8" fill={dm ? "#1e293b" : "#001a6e"} stroke="#C8A44A" strokeWidth="1.5"/>
+                              <text x={pin.x} y={pin.y - 38} textAnchor="middle" fill="white" fontSize="9" fontWeight="bold">{a.name.length > 18 ? a.name.slice(0,18)+"…" : a.name}</text>
+                              <text x={pin.x} y={pin.y - 22} textAnchor="middle" fill="#C8A44A" fontSize="9">
+                                {a.status === "closed" ? "Geschlossen" : `Wartezeit: ${a.wait} min`}
+                              </text>
+                            </>
+                          )}
+                        </g>
+                      );
+                    })}
+                  </svg>
+                </div>
+              </div>
+
+              {/* Legende Karte */}
+              <div className="rounded-2xl p-3 grid grid-cols-2 gap-2" style={{backgroundColor: dm ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.12)"}}>
+                {[
+                  { color: "#22c55e", label: "≤ 15 min" },
+                  { color: "#facc15", label: "16–40 min" },
+                  { color: "#f97316", label: "41–70 min" },
+                  { color: "#dc2626", label: "> 70 min" },
+                  { color: "#6b7280", label: "Geschlossen" },
+                ].map(l => (
+                  <div key={l.label} className="flex items-center gap-2">
+                    <div className="w-4 h-4 rounded-full flex-shrink-0" style={{backgroundColor: l.color}}/>
+                    <span className="text-white text-xs">{l.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Restaurant Tab */}
+        {activeTab === "restaurants" && (() => {
+          const restTypes = ["Alle", "Restaurant", "Schnellimbiss", "Snack"];
+          const filtered = restaurants.filter(r => restFilter === "Alle" || r.type === restFilter);
+          return (
+            <div className="space-y-4">
+              {/* Filter */}
+              <div className="flex flex-wrap gap-2">
+                {restTypes.map(t => (
+                  <button key={t} onClick={() => setRestFilter(t)}
+                    className="px-4 py-2 rounded-full text-sm font-semibold transition-all"
+                    style={restFilter === t
+                      ? { backgroundColor: "#C8A44A", color: "#001a6e", fontWeight: 700 }
+                      : { backgroundColor: dm ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.15)", color: "white" }
+                    }>{t}</button>
+                ))}
+              </div>
+
+              {/* Liste */}
+              <div className="space-y-3">
+                {filtered.map(r => {
+                  const open = isOpen(r.open, r.close);
+                  return (
+                    <div key={r.id} className="rounded-2xl p-4 shadow" style={{backgroundColor: dm ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.13)", border: open ? "1px solid rgba(34,197,94,0.4)" : "1px solid rgba(255,255,255,0.08)"}}>
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="text-white font-bold text-sm">{r.name}</p>
+                            <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                              style={{backgroundColor: open ? "rgba(34,197,94,0.2)" : "rgba(107,114,128,0.3)", color: open ? "#86efac" : "#9ca3af"}}>
+                              {open ? "● Geöffnet" : "● Geschlossen"}
+                            </span>
+                          </div>
+                          <p className="text-xs mt-1" style={{color: "#93c5fd"}}>{r.land} · {r.cuisine} · {r.price}</p>
+                          <p className="text-xs mt-0.5" style={{color: "#93c5fd"}}>🕒 {r.open} – {r.close} Uhr</p>
+                        </div>
+                        <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                          <span className="text-xs px-2 py-0.5 rounded-full" style={{backgroundColor: "rgba(200,164,74,0.2)", color: "#C8A44A"}}>{r.type}</span>
+                          {r.reservation && (
+                            <span className="text-xs px-2 py-0.5 rounded-full font-semibold"
+                              style={{backgroundColor: r.reserved ? "rgba(220,38,38,0.2)" : "rgba(34,197,94,0.15)", color: r.reserved ? "#fca5a5" : "#86efac"}}>
+                              {r.reserved ? "🔴 Ausgebucht" : "✅ Reservierbar"}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <p className="text-center text-xs pb-2" style={{color: "#93c5fd"}}>Öffnungszeiten basieren auf aktueller Uhrzeit · Beispieldaten</p>
+            </div>
+          );
+        })()}
 
         {/* Legend */}
         <div className="rounded-2xl p-4" style={{backgroundColor: dm ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.15)"}}>
