@@ -41,8 +41,31 @@ export default function DLPMobil() {
   const [searchQuery, setSearchQuery] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
   const [darkMode, setDarkMode] = useState(false);
+  const [favorites, setFavorites] = useState([]);
+  const [activeTab, setActiveTab] = useState("alle"); // "alle" | "favoriten" | "plan"
+  const [plan, setPlan] = useState([]); // [{id, customWait}]
+  const [dragOver, setDragOver] = useState(null);
+  const [dragging, setDragging] = useState(null);
+
+  const addToPlan = (attraction) => {
+    if (!plan.find((p) => p.id === attraction.id)) {
+      setPlan((prev) => [...prev, { id: attraction.id, customWait: attraction.wait }]);
+    }
+  };
+  const removeFromPlan = (id) => setPlan((prev) => prev.filter((p) => p.id !== id));
+  const movePlan = (fromIdx, toIdx) => {
+    const updated = [...plan];
+    const [moved] = updated.splice(fromIdx, 1);
+    updated.splice(toIdx, 0, moved);
+    setPlan(updated);
+  };
+  const planAttractions = plan.map((p) => ({ ...attractions.find((a) => a.id === p.id), customWait: p.customWait }));
 
   const dm = darkMode;
+
+  const toggleFavorite = (id) => {
+    setFavorites((prev) => prev.includes(id) ? prev.filter((f) => f !== id) : [...prev, id]);
+  };
 
   useEffect(() => {
     const update = () => {
@@ -55,6 +78,7 @@ export default function DLPMobil() {
   }, []);
 
   const filtered = attractions
+    .filter((a) => activeTab === "favoriten" ? favorites.includes(a.id) : true)
     .filter((a) => selectedLand === "Alle" || a.land === selectedLand)
     .filter((a) => a.name.toLowerCase().includes(searchQuery.toLowerCase()))
     .sort((a, b) => {
@@ -81,7 +105,7 @@ export default function DLPMobil() {
             </div>
             <div>
               <h1 className="text-white font-black text-xl tracking-tight leading-none">ParcWizard</h1>
-              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 1.2</p>
+              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 1.3</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -101,6 +125,29 @@ export default function DLPMobil() {
           </div>
         </div>
       </header>
+
+      {/* Tab Bar */}
+      <div className="sticky top-16 z-10 shadow" style={{backgroundColor: dm ? "#05051a" : "#001a6e"}}>
+        <div className="max-w-2xl mx-auto px-4 flex gap-1 pb-2 pt-1">
+          {[
+            { key: "alle", label: "🎢 Alle Attraktionen" },
+            { key: "favoriten", label: `⭐ Favoriten (${favorites.length})` },
+            { key: "plan", label: `🗓️ Tagesplan (${plan.length})` },
+          ].map((t) => (
+            <button
+              key={t.key}
+              onClick={() => setActiveTab(t.key)}
+              className="flex-1 py-2 rounded-xl text-sm font-semibold transition-all"
+              style={activeTab === t.key
+                ? { backgroundColor: "#C8A44A", color: "#001a6e", fontWeight: 700 }
+                : { backgroundColor: "rgba(255,255,255,0.12)", color: "white" }
+              }
+            >
+              {t.label}
+            </button>
+          ))}
+        </div>
+      </div>
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-5">
 
@@ -175,16 +222,38 @@ export default function DLPMobil() {
           {filtered.length === 0 && (
             <div className="text-center py-10" style={{color: "#93c5fd"}}>Keine Attraktionen gefunden.</div>
           )}
+          {activeTab === "favoriten" && favorites.length === 0 && (
+            <div className="text-center py-10" style={{color: "#93c5fd"}}>
+              <p className="text-3xl mb-3">⭐</p>
+              <p className="font-semibold text-white">Noch keine Favoriten</p>
+              <p className="text-sm mt-1">Tippe auf den Stern bei einer Attraktion, um sie zu merken.</p>
+            </div>
+          )}
           {filtered.map((a) => (
             <div
               key={a.id}
               className={`rounded-2xl p-4 flex items-center justify-between shadow ${waitColor(a.wait, a.status, dm)}`}
             >
+              <button
+                onClick={() => toggleFavorite(a.id)}
+                className="mr-3 text-xl flex-shrink-0 transition-transform active:scale-125"
+                title={favorites.includes(a.id) ? "Aus Favoriten entfernen" : "Zu Favoriten hinzufügen"}
+              >
+                {favorites.includes(a.id) ? "⭐" : "☆"}
+              </button>
               <div className="flex-1 min-w-0">
                 <p className={`font-bold truncate ${dm ? "text-gray-100" : "text-gray-900"}`}>{a.name}</p>
                 <p className={`text-xs mt-0.5 ${dm ? "text-gray-400" : "text-gray-500"}`}>{a.land}</p>
               </div>
-              <div className={`ml-4 flex-shrink-0 rounded-xl px-4 py-2 text-center min-w-16 ${waitBadgeColor(a.wait, a.status)}`}>
+              <button
+                onClick={() => addToPlan(a)}
+                className="mr-2 flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all"
+                style={{ backgroundColor: plan.find((p) => p.id === a.id) ? "#C8A44A" : "rgba(0,0,0,0.15)", color: plan.find((p) => p.id === a.id) ? "#001a6e" : "inherit" }}
+                title={plan.find((p) => p.id === a.id) ? "Im Tagesplan" : "Zum Tagesplan hinzufügen"}
+              >
+                {plan.find((p) => p.id === a.id) ? "✔️" : "+"}
+              </button>
+              <div className={`ml-2 flex-shrink-0 rounded-xl px-4 py-2 text-center min-w-16 ${waitBadgeColor(a.wait, a.status)}`}>
                 {a.status === "closed" ? (
                   <span className="text-xs font-bold">Geschlossen</span>
                 ) : (
@@ -197,6 +266,72 @@ export default function DLPMobil() {
             </div>
           ))}
         </div>
+
+        {/* Tagesplan Tab */}
+        {activeTab === "plan" && (
+          <div className="space-y-4">
+            {plan.length === 0 ? (
+              <div className="text-center py-10" style={{color: "#93c5fd"}}>
+                <p className="text-3xl mb-3">🗓️</p>
+                <p className="font-semibold text-white">Noch kein Tagesplan</p>
+                <p className="text-sm mt-1">Tippe auf das + bei einer Attraktion, um sie zum Plan hinzuzufügen.</p>
+              </div>
+            ) : (
+              <>
+                {/* Zeitschätzung */}
+                {(() => {
+                  const totalWait = planAttractions.reduce((s, a) => s + (a.status === "closed" ? 0 : a.customWait), 0);
+                  const walkTime = (planAttractions.length - 1) * 10;
+                  const totalMin = totalWait + walkTime;
+                  const hours = Math.floor(totalMin / 60);
+                  const mins = totalMin % 60;
+                  return (
+                    <div className="rounded-2xl p-4" style={{backgroundColor: "rgba(200,164,74,0.2)", border: "1px solid #C8A44A"}}>
+                      <p className="text-white font-bold text-sm mb-1">⏱️ Geschätzte Gesamtdauer</p>
+                      <p className="font-black text-2xl" style={{color: "#C8A44A"}}>{hours > 0 ? `${hours} Std. ` : ""}{mins} Min.</p>
+                      <p className="text-xs mt-1" style={{color: "#93c5fd"}}>inkl. ~{walkTime} Min. Laufzeit zwischen Attraktionen</p>
+                    </div>
+                  );
+                })()}
+
+                {/* Plan-Liste */}
+                <div className="space-y-2">
+                  {planAttractions.map((a, idx) => {
+                    const cumulativeWait = planAttractions.slice(0, idx).reduce((s, x) => s + (x.status === "closed" ? 0 : x.customWait) + 10, 0);
+                    const startTime = new Date();
+                    startTime.setMinutes(startTime.getMinutes() + cumulativeWait);
+                    const timeStr = startTime.toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+                    return (
+                      <div key={a.id} className={`rounded-2xl p-3 flex items-center gap-3 shadow ${waitColor(a.wait, a.status, dm)}`}>
+                        <div className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center font-black text-sm" style={{backgroundColor: "#C8A44A", color: "#001a6e"}}>
+                          {idx + 1}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className={`font-bold text-sm truncate ${dm ? "text-gray-100" : "text-gray-900"}`}>{a.name}</p>
+                          <p className={`text-xs ${dm ? "text-gray-400" : "text-gray-500"}`}>{a.land} · ab ca. {timeStr} Uhr</p>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className={`rounded-lg px-2 py-1 text-center text-xs font-bold ${waitBadgeColor(a.wait, a.status)}`}>
+                            {a.status === "closed" ? "Zu" : `${a.customWait} min`}
+                          </div>
+                          <button onClick={() => removeFromPlan(a.id)} className="text-gray-400 hover:text-red-400 text-lg leading-none">×</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <button
+                  onClick={() => setPlan([])}
+                  className="w-full py-2 rounded-xl text-sm font-semibold"
+                  style={{backgroundColor: "rgba(255,255,255,0.1)", color: "#f87171"}}
+                >
+                  🗑️ Tagesplan leeren
+                </button>
+              </>
+            )}
+          </div>
+        )}
 
         {/* Legend */}
         <div className="rounded-2xl p-4" style={{backgroundColor: dm ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.15)"}}>
