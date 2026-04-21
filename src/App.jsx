@@ -19,12 +19,12 @@ const attractions = [
 
 const lands = ["Alle", "Frontierland", "Adventureland", "Fantasyland", "Discoveryland", "Walt Disney Studios"];
 
-const waitColor = (wait, status) => {
-  if (status === "closed") return "bg-gray-200 text-gray-500";
-  if (wait <= 15) return "bg-green-100 text-green-800";
-  if (wait <= 40) return "bg-yellow-100 text-yellow-800";
-  if (wait <= 70) return "bg-orange-100 text-orange-800";
-  return "bg-red-100 text-red-800";
+const waitColor = (wait, status, dark) => {
+  if (status === "closed") return dark ? "bg-gray-700 text-gray-400" : "bg-gray-200 text-gray-500";
+  if (wait <= 15) return dark ? "bg-green-900 text-green-300" : "bg-green-100 text-green-800";
+  if (wait <= 40) return dark ? "bg-yellow-900 text-yellow-300" : "bg-yellow-100 text-yellow-800";
+  if (wait <= 70) return dark ? "bg-orange-900 text-orange-300" : "bg-orange-100 text-orange-800";
+  return dark ? "bg-red-900 text-red-300" : "bg-red-100 text-red-800";
 };
 
 const waitBadgeColor = (wait, status) => {
@@ -40,6 +40,9 @@ export default function DLPMobil() {
   const [sortBy, setSortBy] = useState("name");
   const [searchQuery, setSearchQuery] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
+  const [darkMode, setDarkMode] = useState(false);
+
+  const dm = darkMode;
 
   useEffect(() => {
     const update = () => {
@@ -67,41 +70,52 @@ export default function DLPMobil() {
   );
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-blue-950 to-blue-900 font-sans">
+    <div className="min-h-screen font-sans" style={{background: dm ? "linear-gradient(to bottom, #0a0a1a, #0f0f2e)" : "linear-gradient(to bottom, #002790, #0038b8)"}}>  
+
       {/* Header */}
-      <header className="bg-blue-950 shadow-lg sticky top-0 z-10">
+      <header className="sticky top-0 z-10 shadow-xl" style={{backgroundColor: dm ? "#05051a" : "#001a6e"}}>
         <div className="max-w-2xl mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-full bg-yellow-400 flex items-center justify-center shadow-md">
-              <span className="text-blue-900 font-black text-lg">✦</span>
+            <div className="w-10 h-10 rounded-full flex items-center justify-center shadow-md" style={{backgroundColor: "#C8A44A"}}>
+              <span className="font-black text-lg" style={{color: "#001a6e"}}>✦</span>
             </div>
             <div>
               <h1 className="text-white font-black text-xl tracking-tight leading-none">ParcWizard</h1>
-              <p className="text-blue-300 text-xs">Wartezeiten und mehr · ver. 1.1</p>
+              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 1.2</p>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-blue-300 text-xs">Aktualisiert</p>
-            <p className="text-white text-xs font-semibold">{lastUpdated}</p>
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-xs" style={{color: "#93c5fd"}}>Aktualisiert</p>
+              <p className="text-white text-xs font-semibold">{lastUpdated}</p>
+            </div>
+            {/* Dark Mode Toggle */}
+            <button
+              onClick={() => setDarkMode(!dm)}
+              className="w-10 h-10 rounded-full flex items-center justify-center transition-all"
+              style={{backgroundColor: dm ? "#C8A44A" : "rgba(255,255,255,0.15)", color: dm ? "#001a6e" : "white", fontSize: "1.2rem"}}
+              title={dm ? "Hell-Modus" : "Dunkel-Modus"}
+            >
+              {dm ? "☀️" : "🌙"}
+            </button>
           </div>
         </div>
       </header>
 
       <main className="max-w-2xl mx-auto px-4 py-6 space-y-5">
-        {/* Stats Bar */}
+
+        {/* Stats */}
         <div className="grid grid-cols-3 gap-3">
-          <div className="bg-white bg-opacity-10 rounded-2xl p-4 text-center">
-            <p className="text-yellow-400 font-black text-2xl">{openCount}</p>
-            <p className="text-blue-200 text-xs mt-1">Attraktionen offen</p>
-          </div>
-          <div className="bg-white bg-opacity-10 rounded-2xl p-4 text-center">
-            <p className="text-yellow-400 font-black text-2xl">{avgWait}<span className="text-sm font-normal"> min</span></p>
-            <p className="text-blue-200 text-xs mt-1">Ø Wartezeit</p>
-          </div>
-          <div className="bg-white bg-opacity-10 rounded-2xl p-4 text-center">
-            <p className="text-yellow-400 font-black text-2xl">{attractions.length - openCount}</p>
-            <p className="text-blue-200 text-xs mt-1">Geschlossen</p>
-          </div>
+          {[
+            { value: openCount, label: "Attraktionen offen" },
+            { value: `${avgWait} min`, label: "Ø Wartezeit" },
+            { value: attractions.length - openCount, label: "Geschlossen" },
+          ].map(({ value, label }) => (
+            <div key={label} className="rounded-2xl p-4 text-center" style={{backgroundColor: dm ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.15)"}}>  
+              <p className="font-black text-2xl" style={{color: "#C8A44A"}}>{value}</p>
+              <p className="text-white text-xs mt-1">{label}</p>
+            </div>
+          ))}
         </div>
 
         {/* Search */}
@@ -112,7 +126,8 @@ export default function DLPMobil() {
             placeholder="Attraktion suchen..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="w-full pl-11 pr-4 py-3 rounded-2xl bg-white text-gray-800 placeholder-gray-400 shadow focus:outline-none focus:ring-2 focus:ring-yellow-400"
+            className={`w-full pl-11 pr-4 py-3 rounded-2xl shadow focus:outline-none ${dm ? "bg-gray-800 text-gray-100 placeholder-gray-500" : "bg-white text-gray-800 placeholder-gray-400"}`}
+            style={{boxShadow: "0 0 0 2px #C8A44A"}}
           />
         </div>
 
@@ -122,11 +137,11 @@ export default function DLPMobil() {
             <button
               key={land}
               onClick={() => setSelectedLand(land)}
-              className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
-                selectedLand === land
-                  ? "bg-yellow-400 text-blue-900 shadow"
-                  : "bg-white bg-opacity-10 text-white hover:bg-opacity-20"
-              }`}
+              className="px-4 py-2 rounded-full text-sm font-semibold transition-all"
+              style={selectedLand === land
+                ? { backgroundColor: "#C8A44A", color: "#001a6e", fontWeight: 700 }
+                : { backgroundColor: dm ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.15)", color: "white" }
+              }
             >
               {land}
             </button>
@@ -135,7 +150,7 @@ export default function DLPMobil() {
 
         {/* Sort */}
         <div className="flex items-center gap-2">
-          <span className="text-blue-300 text-sm">Sortieren:</span>
+          <span className="text-sm" style={{color: "#93c5fd"}}>Sortieren:</span>
           {[
             { key: "name", label: "Name" },
             { key: "wait", label: "Wartezeit" },
@@ -144,11 +159,11 @@ export default function DLPMobil() {
             <button
               key={s.key}
               onClick={() => setSortBy(s.key)}
-              className={`px-3 py-1 rounded-full text-xs font-semibold transition-all ${
-                sortBy === s.key
-                  ? "bg-yellow-400 text-blue-900"
-                  : "bg-white bg-opacity-10 text-white hover:bg-opacity-20"
-              }`}
+              className="px-3 py-1 rounded-full text-xs font-semibold transition-all"
+              style={sortBy === s.key
+                ? { backgroundColor: "#C8A44A", color: "#001a6e", fontWeight: 700 }
+                : { backgroundColor: dm ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.15)", color: "white" }
+              }
             >
               {s.label}
             </button>
@@ -158,16 +173,16 @@ export default function DLPMobil() {
         {/* Attraction List */}
         <div className="space-y-3">
           {filtered.length === 0 && (
-            <div className="text-center text-blue-300 py-10">Keine Attraktionen gefunden.</div>
+            <div className="text-center py-10" style={{color: "#93c5fd"}}>Keine Attraktionen gefunden.</div>
           )}
           {filtered.map((a) => (
             <div
               key={a.id}
-              className={`rounded-2xl p-4 flex items-center justify-between shadow ${waitColor(a.wait, a.status)}`}
+              className={`rounded-2xl p-4 flex items-center justify-between shadow ${waitColor(a.wait, a.status, dm)}`}
             >
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-gray-900 truncate">{a.name}</p>
-                <p className="text-xs text-gray-500 mt-0.5">{a.land}</p>
+                <p className={`font-bold truncate ${dm ? "text-gray-100" : "text-gray-900"}`}>{a.name}</p>
+                <p className={`text-xs mt-0.5 ${dm ? "text-gray-400" : "text-gray-500"}`}>{a.land}</p>
               </div>
               <div className={`ml-4 flex-shrink-0 rounded-xl px-4 py-2 text-center min-w-16 ${waitBadgeColor(a.wait, a.status)}`}>
                 {a.status === "closed" ? (
@@ -184,7 +199,7 @@ export default function DLPMobil() {
         </div>
 
         {/* Legend */}
-        <div className="bg-white bg-opacity-10 rounded-2xl p-4">
+        <div className="rounded-2xl p-4" style={{backgroundColor: dm ? "rgba(255,255,255,0.07)" : "rgba(255,255,255,0.15)"}}>
           <p className="text-white font-semibold text-sm mb-3">Legende</p>
           <div className="grid grid-cols-2 gap-2">
             {[
@@ -195,15 +210,15 @@ export default function DLPMobil() {
             ].map((l) => (
               <div key={l.label} className="flex items-center gap-2">
                 <div className={`w-3 h-3 rounded-full ${l.color}`} />
-                <span className="text-blue-200 text-xs">{l.label}</span>
+                <span className="text-white text-xs">{l.label}</span>
               </div>
             ))}
           </div>
         </div>
 
         {/* Disclaimer */}
-        <p className="text-center text-blue-400 text-xs pb-4">
-          ParcWizard ist keine offizielle App von Disneyland Paris. Alle Daten sind Beispieldaten und dienen nur zur Demonstration.
+        <p className="text-center text-xs pb-4" style={{color: "#93c5fd"}}>
+          ParcWizard ist keine offizielle App von Disneyland Paris. Alle Daten sind Beispieldaten.
         </p>
       </main>
     </div>
