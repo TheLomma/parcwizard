@@ -86,6 +86,7 @@ const waitBadgeColor = (wait, status) => {
 export default function DLPMobil() {
   const [selectedLand, setSelectedLand] = useState("Alle");
   const [sortBy, setSortBy] = useState("name");
+  const [quickFilter, setQuickFilter] = useState(null); // null | "short" | "open" | "closed"
   const [searchQuery, setSearchQuery] = useState("");
   const [lastUpdated, setLastUpdated] = useState("");
   const [darkMode, setDarkMode] = useState(false);
@@ -225,6 +226,12 @@ export default function DLPMobil() {
     .filter((a) => activeTab === "favoriten" ? favorites.includes(a.id) : true)
     .filter((a) => selectedLand === "Alle" || a.land === selectedLand)
     .filter((a) => a.name.toLowerCase().includes(searchQuery.toLowerCase()))
+    .filter((a) => {
+      if (quickFilter === "short") return a.status === "open" && a.wait <= 15;
+      if (quickFilter === "open") return a.status === "open";
+      if (quickFilter === "closed") return a.status === "closed";
+      return true;
+    })
     .sort((a, b) => {
       if (sortBy === "wait") return b.wait - a.wait;
       if (sortBy === "land") return a.land.localeCompare(b.land);
@@ -254,7 +261,7 @@ export default function DLPMobil() {
             </div>
             <div>
               <h1 className="text-white font-black text-xl tracking-tight leading-none">ParcWizard</h1>
-              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 1.6</p>
+              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 1.7</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -423,6 +430,37 @@ export default function DLPMobil() {
               {land}
             </button>
           ))}
+        </div>
+
+        {/* Schnellfilter */}
+        <div className="flex gap-2 flex-wrap">
+          <span className="text-sm self-center" style={{color: "#93c5fd"}}>Schnell:</span>
+          {[
+            { key: "short", label: "⚡ ≤ 15 min", active: "#22c55e" },
+            { key: "open",  label: "✅ Geöffnet",  active: "#3b82f6" },
+            { key: "closed",label: "🔴 Geschlossen",active: "#ef4444" },
+          ].map(f => (
+            <button
+              key={f.key}
+              onClick={() => setQuickFilter(quickFilter === f.key ? null : f.key)}
+              className="px-3 py-1.5 rounded-full text-xs font-bold transition-all"
+              style={quickFilter === f.key
+                ? { backgroundColor: f.active, color: "white", boxShadow: `0 0 8px ${f.active}88` }
+                : { backgroundColor: dm ? "rgba(255,255,255,0.08)" : "rgba(255,255,255,0.15)", color: "white" }
+              }
+            >
+              {f.label}
+            </button>
+          ))}
+          {quickFilter && (
+            <button
+              onClick={() => setQuickFilter(null)}
+              className="px-3 py-1.5 rounded-full text-xs font-bold"
+              style={{backgroundColor: "rgba(255,255,255,0.08)", color: "#f87171"}}
+            >
+              ✕ Reset
+            </button>
+          )}
         </div>
 
         {/* Sort */}
