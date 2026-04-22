@@ -312,7 +312,7 @@ export default function DLPMobil() {
             </div>
             <div>
               <h1 className="text-white font-black text-xl tracking-tight leading-none">ParcWizard</h1>
-              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 2.5</p>
+              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 2.6</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -722,9 +722,9 @@ export default function DLPMobil() {
                                       </div>
                                     );
                                   })()}
-                                </div>
-                              )}
-                            </div>
+                                  </div>
+                                )}
+                              </div>
                             <button
                               onClick={() => addToPlan(a)}
                               className={`flex-shrink-0 rounded-full flex items-center justify-center text-sm transition-all ${compactMode ? "mr-1 w-6 h-6 text-xs" : "mr-2 w-8 h-8"}`}
