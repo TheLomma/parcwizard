@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const attractions = [
   { id: 1, name: "Big Thunder Mountain", land: "Frontierland", wait: 45, status: "open" },
@@ -95,8 +95,7 @@ export default function DLPMobil() {
   const [notifications, setNotifications] = useState([]);
   const [liveData, setLiveData] = useState(attractions.map(a => ({...a})));
   const [waitHistory, setWaitHistory] = useState(() => { const init = {}; attractions.forEach(a => { init[a.id] = [a.wait]; }); return init; });
-  const prevData = useState(attractions.map(a => ({...a})))[0];
-  const prevRef = { current: attractions.map(a => ({...a})) };
+  const prevRef = useRef(attractions.map(a => ({...a})));
   const [favorites, setFavorites] = useState([]);
   const [activeTab, setActiveTab] = useState("alle"); // "alle" | "favoriten" | "plan" | "karte" | "restaurants"
   const [restFilter, setRestFilter] = useState("Alle");
@@ -108,11 +107,10 @@ export default function DLPMobil() {
     return () => clearInterval(t);
   }, []); // "alle" | "favoriten" | "plan" | "karte" // "alle" | "favoriten" | "plan"
   const [plan, setPlan] = useState([]); // [{id, customWait}]
-  const [dragOver, setDragOver] = useState(null);
   const [collapsedLands, setCollapsedLands] = useState({});
   const [swipeState, setSwipeState] = useState({});
   const [compactMode, setCompactMode] = useState(false); // {id: offsetX}
-  const swipeTouchStart = { current: {} };
+  const swipeTouchStart = useRef({});
 
   const handleSwipeStart = (id, e) => {
     swipeTouchStart.current[id] = e.touches[0].clientX;
@@ -144,11 +142,10 @@ export default function DLPMobil() {
     else if (type === "success") navigator.vibrate([10, 20, 10]);
     else if (type === "error") navigator.vibrate([50, 30, 50]);
   };
-  const [dragging, setDragging] = useState(null);
   const [tooltip, setTooltip] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
   const [pullY, setPullY] = useState(0);
-  const touchStartY = { current: 0 };
+  const touchStartY = useRef(0);
 
   const triggerRefresh = () => {
     haptic("medium");
@@ -202,7 +199,7 @@ export default function DLPMobil() {
     updated.splice(toIdx, 0, moved);
     setPlan(updated);
   };
-  const planAttractions = plan.map((p) => ({ ...attractions.find((a) => a.id === p.id), customWait: p.customWait }));
+  const planAttractions = plan.map((p) => { const live = liveData.find((a) => a.id === p.id); return { ...live, customWait: p.customWait }; });
 
   const dm = darkMode;
 
@@ -315,7 +312,7 @@ export default function DLPMobil() {
             </div>
             <div>
               <h1 className="text-white font-black text-xl tracking-tight leading-none">ParcWizard</h1>
-              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 2.4</p>
+              <p className="text-xs" style={{color: "#93c5fd"}}>Wartezeiten und mehr · ver. 2.5</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -632,22 +629,22 @@ export default function DLPMobil() {
           ))}
         </div>
 
-        {/* Attraction List – gruppiert nach Land */}
-        {activeTab === "favoriten" && favorites.length === 0 ? (
-          <div className="text-center py-10" style={{color: "#93c5fd"}}>
-            <p className="text-3xl mb-3">⭐</p>
-            <p className="font-semibold text-white">Noch keine Favoriten</p>
-            <p className="text-sm mt-1">Tippe auf den Stern bei einer Attraktion, um sie zu merken.</p>
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-10" style={{color: "#93c5fd"}}>Keine Attraktionen gefunden.</div>
-        ) : (() => {
-          // Gruppieren nach Land (Reihenfolge aus lands-Array)
+        {/* Attraction List – nur auf Alle/Favoriten-Tab */}
+        {(activeTab === "alle" || activeTab === "favoriten") && (() => {
+          if (activeTab === "favoriten" && favorites.length === 0) return (
+            <div className="text-center py-10" style={{color: "#93c5fd"}}>
+              <p className="text-3xl mb-3">⭐</p>
+              <p className="font-semibold text-white">Noch keine Favoriten</p>
+              <p className="text-sm mt-1">Tippe auf den Stern bei einer Attraktion, um sie zu merken.</p>
+            </div>
+          );
+          if (filtered.length === 0) return (
+            <div className="text-center py-10" style={{color: "#93c5fd"}}>Keine Attraktionen gefunden.</div>
+          );
           const grouped = lands
             .filter(l => l !== "Alle")
             .map(land => ({ land, items: filtered.filter(a => a.land === land) }))
             .filter(g => g.items.length > 0);
-
           return (
             <div className="space-y-4">
               {grouped.map(({ land, items }) => {
@@ -691,17 +688,17 @@ export default function DLPMobil() {
                               onTouchMove={(e) => handleSwipeMove(a.id, e)}
                               onTouchEnd={() => handleSwipeEnd(a.id)}
                             >
-                            <button
-                              onClick={() => toggleFavorite(a.id)}
-                              className={`flex-shrink-0 transition-transform active:scale-125 ${compactMode ? "mr-2 text-base" : "mr-3 text-xl"}`}
-                            >
-                              {favorites.includes(a.id) ? "⭐" : "☆"}
-                            </button>
-                            <div className="flex-1 min-w-0">
-                              <p className={`font-bold truncate ${compactMode ? "text-sm" : "text-base"} ${dm ? "text-gray-100" : "text-gray-900"}`}>{a.name}</p>
-                              {!compactMode && (
-                                <div className="flex items-center gap-2 mt-0.5">
-                                  <p className={`text-xs ${dm ? "text-gray-400" : "text-gray-500"}`}>{a.land}</p>
+                              <button
+                                onClick={() => toggleFavorite(a.id)}
+                                className={`flex-shrink-0 transition-transform active:scale-125 ${compactMode ? "mr-2 text-base" : "mr-3 text-xl"}`}
+                              >
+                                {favorites.includes(a.id) ? "⭐" : "☆"}
+                              </button>
+                              <div className="flex-1 min-w-0">
+                                <p className={`font-bold truncate ${compactMode ? "text-sm" : "text-base"} ${dm ? "text-gray-100" : "text-gray-900"}`}>{a.name}</p>
+                                {!compactMode && (
+                                  <div className="flex items-center gap-2 mt-0.5">
+                                    <p className={`text-xs ${dm ? "text-gray-400" : "text-gray-500"}`}>{a.land}</p>
                                   {/* Sparkline */}
                                   {(() => {
                                     const hist = waitHistory[a.id] || [a.wait];
